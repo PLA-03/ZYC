@@ -1,0 +1,11 @@
+release/main.o
+release/mainwindow.o
+release/databasemanager.o
+release/bookmanager.o
+release/readermanager.o
+release/borrowmanager.o
+release/moc_mainwindow.o
+release/moc_databasemanager.o
+release/moc_bookmanager.o
+release/moc_readermanager.o
+release/moc_borrowmanager.o

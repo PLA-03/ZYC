@@ -1,0 +1,11 @@
+debug/main.o
+debug/mainwindow.o
+debug/databasemanager.o
+debug/bookmanager.o
+debug/readermanager.o
+debug/borrowmanager.o
+debug/moc_mainwindow.o
+debug/moc_databasemanager.o
+debug/moc_bookmanager.o
+debug/moc_readermanager.o
+debug/moc_borrowmanager.o
