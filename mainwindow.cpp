@@ -7,6 +7,9 @@
 #include <QDebug>
 #include <QCloseEvent>
 #include <QHeaderView>
+#include <QFileDialog>
+#include <databasemanager.h>
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -68,6 +71,10 @@ void MainWindow::setupUI()
     tabWidget->addTab(borrowTab, tr("借还管理"));
 }
 
+
+
+
+
 void MainWindow::setupBookTab()
 {
     bookTab = new QWidget(this);
@@ -124,6 +131,35 @@ void MainWindow::setupBookTab()
     formLayout->addWidget(stockLabel, 4, 0);
     formLayout->addWidget(stockSpinBox, 4, 1, Qt::AlignLeft);
     
+    // 搜索功能
+    QGroupBox *searchGroupBox = new QGroupBox(tr("图书查询"), bookTab);
+    QHBoxLayout *searchLayout = new QHBoxLayout(searchGroupBox);
+    searchLayout->setContentsMargins(10, 10, 10, 10);
+    searchLayout->setSpacing(10);
+    
+    // 搜索类型下拉框
+    QLabel *searchTypeLabel = new QLabel(tr("搜索类型:"), searchGroupBox);
+    searchTypeComboBox = new QComboBox(searchGroupBox);
+    searchTypeComboBox->addItem(tr("全部字段"), "all");
+    searchTypeComboBox->addItem(tr("图书ID"), "book_id");
+    searchTypeComboBox->addItem(tr("图书名称"), "book_name");
+    searchTypeComboBox->addItem(tr("作者"), "author");
+    searchTypeComboBox->addItem(tr("分类"), "category");
+    
+    // 搜索输入框
+    searchLineEdit = new QLineEdit(searchGroupBox);
+    searchLineEdit->setPlaceholderText(tr("请输入搜索关键词"));
+    
+    // 搜索按钮
+    searchBtn = new QPushButton(tr("搜索"), searchGroupBox);
+    clearSearchBtn = new QPushButton(tr("清空"), searchGroupBox);
+    
+    searchLayout->addWidget(searchTypeLabel);
+    searchLayout->addWidget(searchTypeComboBox);
+    searchLayout->addWidget(searchLineEdit);
+    searchLayout->addWidget(searchBtn);
+    searchLayout->addWidget(clearSearchBtn);
+    
     // Buttons
     QHBoxLayout *buttonLayout = new QHBoxLayout();
     buttonLayout->setSpacing(8);
@@ -142,6 +178,7 @@ void MainWindow::setupBookTab()
     
     formLayout->addLayout(buttonLayout, 5, 0, 1, 2);
     mainLayout->addWidget(formGroupBox);
+    mainLayout->addWidget(searchGroupBox);
     
     // Table view
     bookTable = new QTableView(bookTab);
@@ -157,6 +194,11 @@ void MainWindow::setupBookTab()
     connect(exportBooksBtn, &QPushButton::clicked, this, &MainWindow::on_exportBooks_clicked);
     connect(importBooksBtn, &QPushButton::clicked, this, &MainWindow::on_importBooks_clicked);
     connect(bookTable, &QTableView::clicked, this, &MainWindow::on_bookTable_clicked);
+    
+    // 搜索功能信号连接
+    connect(searchBtn, &QPushButton::clicked, this, &MainWindow::on_searchBooks_clicked);
+    connect(clearSearchBtn, &QPushButton::clicked, this, &MainWindow::on_clearSearch_clicked);
+    connect(searchLineEdit, &QLineEdit::returnPressed, this, &MainWindow::on_searchBooks_clicked);
 }
 
 void MainWindow::setupReaderTab()
@@ -197,6 +239,17 @@ void MainWindow::setupReaderTab()
     formLayout->addWidget(phoneLabel, 2, 0);
     formLayout->addWidget(phoneEdit, 2, 1);
     
+    // Gender
+    QLabel *genderLabel = new QLabel(tr("性别:"), formGroupBox);
+    genderLabel->setMinimumWidth(80);
+    genderLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    genderComboBox = new QComboBox(formGroupBox);
+    genderComboBox->addItem(tr("未知"), "未知");
+    genderComboBox->addItem(tr("男"), "男");
+    genderComboBox->addItem(tr("女"), "女");
+    formLayout->addWidget(genderLabel, 3, 0);
+    formLayout->addWidget(genderComboBox, 3, 1);
+    
     // Buttons
     QHBoxLayout *buttonLayout = new QHBoxLayout();
     buttonLayout->setSpacing(8);
@@ -213,7 +266,7 @@ void MainWindow::setupReaderTab()
     buttonLayout->addWidget(exportReadersBtn);
     buttonLayout->addWidget(importReadersBtn);
     
-    formLayout->addLayout(buttonLayout, 3, 0, 1, 2);
+    formLayout->addLayout(buttonLayout, 4, 0, 1, 2);
     mainLayout->addWidget(formGroupBox);
     
     // Table view
@@ -324,6 +377,8 @@ void MainWindow::setupBorrowTab()
     connect(exportBorrowsBtn, &QPushButton::clicked, this, &MainWindow::on_exportBorrows_clicked);
     connect(borrowTable, &QTableView::clicked, this, &MainWindow::on_borrowTable_clicked);
 }
+
+
 
 void MainWindow::on_addBook_clicked()
 {
@@ -467,14 +522,15 @@ void MainWindow::on_addReader_clicked()
     QString readerId = readerIdEdit->text();
     QString name = readerNameEdit->text();
     QString phone = phoneEdit->text();
+    QString gender = genderComboBox->currentData().toString();
     
     if (readerId.isEmpty() || name.isEmpty() || phone.isEmpty()) {
-        QMessageBox::warning(this, tr("Warning"), tr("Please fill in all fields!"));
+        QMessageBox::warning(this, tr("警告"), tr("请填写所有字段！"));
         return;
     }
     
-    if (readerManager->addReader(readerId, name, phone)) {
-        QMessageBox::information(this, tr("Success"), tr("Reader added successfully!"));
+    if (readerManager->addReader(readerId, name, phone, gender)) {
+        QMessageBox::information(this, tr("成功"), tr("读者添加成功！"));
         refreshReaderTable();
         refreshReaderComboBox();
         
@@ -482,8 +538,9 @@ void MainWindow::on_addReader_clicked()
         readerIdEdit->clear();
         readerNameEdit->clear();
         phoneEdit->clear();
+        genderComboBox->setCurrentIndex(0);
     } else {
-        QMessageBox::critical(this, tr("Error"), tr("Failed to add reader!"));
+        QMessageBox::critical(this, tr("错误"), tr("读者添加失败！"));
     }
 }
 
@@ -496,13 +553,14 @@ void MainWindow::on_updateReader_clicked()
     
     QString name = readerNameEdit->text();
     QString phone = phoneEdit->text();
+    QString gender = genderComboBox->currentData().toString();
     
     if (name.isEmpty() || phone.isEmpty()) {
         QMessageBox::warning(this, tr("警告"), tr("请填写所有字段！"));
         return;
     }
     
-    if (readerManager->updateReader(QString::number(selectedReaderId), name, phone)) {
+    if (readerManager->updateReader(QString::number(selectedReaderId), name, phone, gender)) {
         QMessageBox::information(this, tr("成功"), tr("读者更新成功！"));
         refreshReaderTable();
         refreshReaderComboBox();
@@ -512,6 +570,7 @@ void MainWindow::on_updateReader_clicked()
         readerIdEdit->clear();
         readerNameEdit->clear();
         phoneEdit->clear();
+        genderComboBox->setCurrentIndex(0);
     } else {
         QMessageBox::critical(this, tr("错误"), tr("读者更新失败！"));
     }
@@ -520,15 +579,15 @@ void MainWindow::on_updateReader_clicked()
 void MainWindow::on_deleteReader_clicked()
 {
     if (selectedReaderId == -1) {
-        QMessageBox::warning(this, tr("Warning"), tr("Please select a reader to delete!"));
+        QMessageBox::warning(this, tr("警告"), tr("请选择要删除的读者！"));
         return;
     }
     
-    if (QMessageBox::question(this, tr("Confirmation"), tr("Are you sure you want to delete this reader?"),
+    if (QMessageBox::question(this, tr("确认"), tr("确定要删除该读者吗？"),
                               QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes) {
         
         if (readerManager->deleteReader(QString::number(selectedReaderId))) {
-            QMessageBox::information(this, tr("Success"), tr("Reader deleted successfully!"));
+            QMessageBox::information(this, tr("成功"), tr("读者删除成功！"));
             refreshReaderTable();
             refreshReaderComboBox();
             selectedReaderId = -1;
@@ -538,7 +597,7 @@ void MainWindow::on_deleteReader_clicked()
             readerNameEdit->clear();
             phoneEdit->clear();
         } else {
-            QMessageBox::critical(this, tr("Error"), tr("Failed to delete reader!"));
+            QMessageBox::critical(this, tr("错误"), tr("读者删除失败！"));
         }
     }
 }
@@ -578,11 +637,20 @@ void MainWindow::on_readerTable_clicked(const QModelIndex &index)
         QString readerId = index.sibling(index.row(), 0).data().toString();
         QString name = index.sibling(index.row(), 1).data().toString();
         QString phone = index.sibling(index.row(), 2).data().toString();
+        QString gender = index.sibling(index.row(), 3).data().toString();
         
         // Fill form
         readerIdEdit->setText(readerId);
         readerNameEdit->setText(name);
         phoneEdit->setText(phone);
+        
+        // Set gender
+        int genderIndex = genderComboBox->findData(gender);
+        if (genderIndex != -1) {
+            genderComboBox->setCurrentIndex(genderIndex);
+        } else {
+            genderComboBox->setCurrentIndex(0); // 默认未知
+        }
     }
 }
 
@@ -592,7 +660,7 @@ void MainWindow::on_borrowBook_clicked()
     int readerIndex = readerComboBox->currentIndex();
     
     if (bookIndex == -1 || readerIndex == -1) {
-        QMessageBox::warning(this, tr("Warning"), tr("Please select a book and a reader!"));
+        QMessageBox::warning(this, tr("警告"), tr("请选择图书和读者！"));
         return;
     }
     
@@ -601,36 +669,37 @@ void MainWindow::on_borrowBook_clicked()
     QDate borrowDate = borrowDateEdit->date();
     QDate dueDate = dueDateEdit->date();
     
+    // 验证日期
     if (dueDate <= borrowDate) {
-        QMessageBox::warning(this, tr("Warning"), tr("Due date must be after borrow date!"));
+        QMessageBox::warning(this, tr("警告"), tr("到期日期必须晚于借阅日期！"));
         return;
     }
     
     if (borrowManager->borrowBook(bookId, readerId, borrowDate, dueDate)) {
-        QMessageBox::information(this, tr("Success"), tr("Book borrowed successfully!"));
+        QMessageBox::information(this, tr("成功"), tr("图书借阅成功！"));
         refreshBorrowTable();
         refreshBookTable(); // Update book stock
         refreshBookComboBox(); // Update book combobox
     } else {
-        QMessageBox::critical(this, tr("Error"), tr("Failed to borrow book!"));
+        QMessageBox::critical(this, tr("错误"), tr("图书借阅失败！"));
     }
 }
 
 void MainWindow::on_returnBook_clicked()
 {
     if (selectedBorrowId == -1) {
-        QMessageBox::warning(this, tr("Warning"), tr("Please select a borrow record to return!"));
+        QMessageBox::warning(this, tr("警告"), tr("请选择要归还的借阅记录！"));
         return;
     }
     
     QDateTime returnDate = returnDateEdit->dateTime();
     
     if (borrowManager->returnBook(selectedBorrowId, returnDate.date())) {
-        QMessageBox::information(this, tr("Success"), tr("Book returned successfully!"));
+        QMessageBox::information(this, tr("成功"), tr("图书归还成功！"));
         refreshBorrowTable();
         selectedBorrowId = -1;
     } else {
-        QMessageBox::critical(this, tr("Error"), tr("Failed to return book!"));
+        QMessageBox::critical(this, tr("错误"), tr("图书归还失败！"));
     }
 }
 
@@ -646,13 +715,13 @@ void MainWindow::on_exportBorrows_clicked()
         }
     }
 }
-    // QString filePath = QFileDialog::getSaveFileName(this, tr("Export Borrows"), QDir::homePath(), tr("CSV Files (*.csv)"));
+    // QString filePath = QFileDialog::getSaveFileName(this, tr("导出借阅记录"), QDir::homePath(), tr("CSV文件 (*.csv)"));
     
     // if (!filePath.isEmpty()) {
     //     if (borrowManager->exportBorrows(filePath)) {
-    //         QMessageBox::information(this, tr("Success"), tr("Borrows exported successfully!"));
+    //         QMessageBox::information(this, tr("成功"), tr("借阅记录导出成功！"));
     //     } else {
-    //         QMessageBox::critical(this, tr("Error"), tr("Failed to export borrows!"));
+    //         QMessageBox::critical(this, tr("错误"), tr("借阅记录导出失败！"));
     //     }
     // }
 
@@ -669,6 +738,41 @@ void MainWindow::refreshBookTable()
     QSqlQueryModel *model = bookManager->getBooks();
     bookTable->setModel(model);
     bookTable->resizeColumnsToContents();
+}
+
+void MainWindow::on_searchBooks_clicked()
+{
+    // 获取搜索关键词和搜索类型
+    QString keyword = searchLineEdit->text().trimmed();
+    QString searchType = searchTypeComboBox->currentData().toString();
+    
+    // 调用搜索方法
+    QSqlQueryModel *model = bookManager->searchBooks(keyword, searchType);
+    if (model) {
+        // 设置搜索结果到表格
+        bookTable->setModel(model);
+        bookTable->resizeColumnsToContents();
+        
+        // 显示搜索结果数量
+        QString resultText = tr("搜索结果：共 %1 条记录").arg(model->rowCount());
+        statusBar()->showMessage(resultText, 3000);
+    } else {
+        // 搜索失败
+        statusBar()->showMessage(tr("搜索失败，请重试"), 3000);
+    }
+}
+
+void MainWindow::on_clearSearch_clicked()
+{
+    // 清空搜索输入
+    searchLineEdit->clear();
+    searchTypeComboBox->setCurrentIndex(0);
+    
+    // 刷新表格，显示所有图书
+    refreshBookTable();
+    
+    // 清空状态栏消息
+    statusBar()->clearMessage();
 }
 
 void MainWindow::refreshReaderTable()
@@ -727,3 +831,5 @@ void MainWindow::closeEvent(QCloseEvent *event)
         event->ignore();
     }
 }
+
+
