@@ -17,6 +17,7 @@ public:
     bool updateBook(const QString& bookId, const QString& bookName, const QString& author, const QString& category, int stock);
     bool deleteBook(const QString& bookId);
     QSqlQueryModel* getBooks();
+    QSqlQueryModel* searchBooks(const QString& keyword, const QString& searchBy = "all"); // 添加图书查询功能
     
     bool exportToCSV(const QString& filePath);
     bool importFromCSV(const QString& filePath);
