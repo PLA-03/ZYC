@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Library Management System</string>
+   <string>图书与借阅管理系统</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -19,17 +19,27 @@
      <widget class="QTabWidget" name="tabWidget">
       <widget class="QWidget" name="bookTab">
        <attribute name="title">
-        <string>Book Management</string>
+        <string>图书管理</string>
        </attribute>
       </widget>
       <widget class="QWidget" name="readerTab">
        <attribute name="title">
-        <string>Reader Management</string>
+        <string>读者管理</string>
        </attribute>
       </widget>
       <widget class="QWidget" name="borrowTab">
        <attribute name="title">
-        <string>Borrow Management</string>
+        <string>借还管理</string>
+       </attribute>
+      </widget>
+      <widget class="QWidget" name="statsTab">
+       <attribute name="title">
+        <string>统计分析</string>
+       </attribute>
+      </widget>
+      <widget class="QWidget" name="settingsTab">
+       <attribute name="title">
+        <string>系统设置</string>
        </attribute>
       </widget>
      </widget>
