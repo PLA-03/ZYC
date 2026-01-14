@@ -14,14 +14,14 @@ ReaderManager::~ReaderManager()
 {
 }
 
-bool ReaderManager::addReader(const QString& readerId, const QString& name, const QString& phone)
+bool ReaderManager::addReader(const QString& readerId, const QString& name, const QString& phone, const QString& gender)
 {
-    return DatabaseManager::instance().addReader(readerId, name, phone);
+    return DatabaseManager::instance().addReader(readerId, name, phone, gender);
 }
 
-bool ReaderManager::updateReader(const QString& readerId, const QString& name, const QString& phone)
+bool ReaderManager::updateReader(const QString& readerId, const QString& name, const QString& phone, const QString& gender)
 {
-    return DatabaseManager::instance().updateReader(readerId, name, phone);
+    return DatabaseManager::instance().updateReader(readerId, name, phone, gender);
 }
 
 bool ReaderManager::deleteReader(const QString& readerId)
