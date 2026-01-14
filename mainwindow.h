@@ -44,6 +44,8 @@ private slots:
     void on_exportBooks_clicked();
     void on_importBooks_clicked();
     void on_bookTable_clicked(const QModelIndex &index);
+    void on_searchBooks_clicked();
+    void on_clearSearch_clicked();
     
     // Reader management slots
     void on_addReader_clicked();
@@ -73,10 +75,14 @@ private:
     QPushButton *deleteBookBtn;
     QPushButton *exportBooksBtn;
     QPushButton *importBooksBtn;
+    QPushButton *searchBtn;
+    QPushButton *clearSearchBtn;
     QLineEdit *bookIdEdit;
     QLineEdit *bookNameEdit;
     QLineEdit *authorEdit;
     QLineEdit *categoryEdit;
+    QLineEdit *searchLineEdit;
+    QComboBox *searchTypeComboBox;
     QSpinBox *stockSpinBox;
     int selectedBookId;
     
@@ -91,6 +97,7 @@ private:
     QLineEdit *readerIdEdit;
     QLineEdit *readerNameEdit;
     QLineEdit *phoneEdit;
+    QComboBox *genderComboBox;
     int selectedReaderId;
     
     // Borrow management components
