@@ -13,7 +13,7 @@ DatabaseManager::DatabaseManager(QObject* parent) : QObject(parent)
 
 DatabaseManager::~DatabaseManager()
 {
-    disconnect();
+    closeDatabase();
 }
 
 DatabaseManager& DatabaseManager::instance()
@@ -24,10 +24,7 @@ DatabaseManager& DatabaseManager::instance()
     return *m_instance;
 }
 
-DatabaseManager& DatabaseManager::getInstance()
-{
-    return instance(); // Alias implementation
-}
+// getInstance() is already defined inline in the header file
 
 bool DatabaseManager::openDatabase()
 {
@@ -62,7 +59,7 @@ bool DatabaseManager::openDatabase()
     return true;
 }
 
-bool DatabaseManager::disconnect()
+bool DatabaseManager::closeDatabase()
 {
     if (m_database.isOpen()) {
         m_database.close();
@@ -86,6 +83,7 @@ bool DatabaseManager::createBookTable()
         qDebug() << "Failed to create books table:" << query.lastError().text();
         return false;
     }
+    
     return true;
 }
 
@@ -130,6 +128,7 @@ bool DatabaseManager::updateBook(const QString& bookId, const QString& bookName,
     
     QSqlQuery query;
     query.prepare("UPDATE books SET book_name = :bookName, author = :author, category = :category, stock = :stock WHERE book_id = :bookId");
+    
     query.bindValue(":bookName", bookName);
     query.bindValue(":author", author);
     query.bindValue(":category", category);
@@ -161,6 +160,7 @@ bool DatabaseManager::deleteBook(const QString& bookId)
         return false;
     }
     
+    // Delete the book
     QSqlQuery query;
     query.prepare("DELETE FROM books WHERE book_id = :bookId");
     query.bindValue(":bookId", bookId.toInt());
@@ -178,6 +178,8 @@ bool DatabaseManager::deleteBook(const QString& bookId)
     return true;
 }
 
+
+
 QSqlQueryModel* DatabaseManager::getBooks()
 {
     QSqlQueryModel* model = new QSqlQueryModel();
@@ -190,6 +192,68 @@ QSqlQueryModel* DatabaseManager::getBooks()
     }
     
     // Set header labels
+    model->setHeaderData(0, Qt::Horizontal, QObject::tr("图书 ID"));
+    model->setHeaderData(1, Qt::Horizontal, QObject::tr("图书名称"));
+    model->setHeaderData(2, Qt::Horizontal, QObject::tr("作者"));
+    model->setHeaderData(3, Qt::Horizontal, QObject::tr("分类"));
+    model->setHeaderData(4, Qt::Horizontal, QObject::tr("库存"));
+    
+    return model;
+}
+
+QSqlQueryModel* DatabaseManager::searchBooks(const QString& keyword, const QString& searchBy)
+{
+    QSqlQueryModel* model = new QSqlQueryModel();
+    QString queryString;
+    
+    // 根据搜索条件构建SQL查询
+    if (searchBy == "all" || searchBy.isEmpty()) {
+        // 搜索所有字段
+        queryString = QString("SELECT * FROM books WHERE book_id LIKE :keyword OR book_name LIKE :keyword OR author LIKE :keyword OR category LIKE :keyword");
+    } else if (searchBy == "book_id") {
+        // 按图书ID搜索
+        queryString = QString("SELECT * FROM books WHERE book_id = :keyword");
+    } else if (searchBy == "book_name") {
+        // 按图书名称搜索
+        queryString = QString("SELECT * FROM books WHERE book_name LIKE :keyword");
+    } else if (searchBy == "author") {
+        // 按作者搜索
+        queryString = QString("SELECT * FROM books WHERE author LIKE :keyword");
+    } else if (searchBy == "category") {
+        // 按分类搜索
+        queryString = QString("SELECT * FROM books WHERE category LIKE :keyword");
+    } else {
+        // 默认搜索所有字段
+        queryString = QString("SELECT * FROM books WHERE book_id LIKE :keyword OR book_name LIKE :keyword OR author LIKE :keyword OR category LIKE :keyword");
+    }
+    
+    QSqlQuery query;
+    query.prepare(queryString);
+    
+    // 根据搜索类型设置参数
+    if (searchBy == "book_id") {
+        // 图书ID是数字，直接使用
+        query.bindValue(":keyword", keyword.toInt());
+    } else {
+        // 其他字段使用LIKE进行模糊搜索
+        query.bindValue(":keyword", QString("%1%").arg(keyword));
+    }
+    
+    if (!query.exec()) {
+        qDebug() << "Failed to search books:" << query.lastError().text();
+        delete model;
+        return nullptr;
+    }
+    
+    model->setQuery(query);
+    
+    if (model->lastError().isValid()) {
+        qDebug() << "Failed to set query for search results:" << model->lastError().text();
+        delete model;
+        return nullptr;
+    }
+    
+    // Set header labels (same as getBooks)
     model->setHeaderData(0, Qt::Horizontal, QObject::tr("图书 ID"));
     model->setHeaderData(1, Qt::Horizontal, QObject::tr("图书名称"));
     model->setHeaderData(2, Qt::Horizontal, QObject::tr("作者"));
@@ -230,7 +294,8 @@ bool DatabaseManager::createReaderTable()
     QString sql = "CREATE TABLE IF NOT EXISTS readers (" 
                   "reader_id INTEGER PRIMARY KEY AUTOINCREMENT, " 
                   "name TEXT NOT NULL, " 
-                  "phone TEXT NOT NULL" 
+                  "phone TEXT NOT NULL, " 
+                  "gender TEXT NOT NULL DEFAULT '未知'" 
                   ")";
     
     if (!query.exec(sql)) {
@@ -240,7 +305,7 @@ bool DatabaseManager::createReaderTable()
     return true;
 }
 
-bool DatabaseManager::addReader(const QString& readerId, const QString& name, const QString& phone)
+bool DatabaseManager::addReader(const QString& readerId, const QString& name, const QString& phone, const QString& gender)
 {
     // Check if reader with the same ID already exists
     QSqlQuery checkQuery;
@@ -253,10 +318,11 @@ bool DatabaseManager::addReader(const QString& readerId, const QString& name, co
     }
     
     QSqlQuery query;
-    query.prepare("INSERT INTO readers (reader_id, name, phone) VALUES (:readerId, :name, :phone)");
+    query.prepare("INSERT INTO readers (reader_id, name, phone, gender) VALUES (:readerId, :name, :phone, :gender)");
     query.bindValue(":readerId", readerId.toInt());
     query.bindValue(":name", name);
     query.bindValue(":phone", phone);
+    query.bindValue(":gender", gender);
     
     if (!query.exec()) {
         qDebug() << "Failed to add reader:" << query.lastError().text();
@@ -265,7 +331,7 @@ bool DatabaseManager::addReader(const QString& readerId, const QString& name, co
     return true;
 }
 
-bool DatabaseManager::updateReader(const QString& readerId, const QString& name, const QString& phone)
+bool DatabaseManager::updateReader(const QString& readerId, const QString& name, const QString& phone, const QString& gender)
 {
     // Check if reader exists
     QSqlQuery checkQuery;
@@ -278,9 +344,10 @@ bool DatabaseManager::updateReader(const QString& readerId, const QString& name,
     }
     
     QSqlQuery query;
-    query.prepare("UPDATE readers SET name = :name, phone = :phone WHERE reader_id = :readerId");
+    query.prepare("UPDATE readers SET name = :name, phone = :phone, gender = :gender WHERE reader_id = :readerId");
     query.bindValue(":name", name);
     query.bindValue(":phone", phone);
+    query.bindValue(":gender", gender);
     query.bindValue(":readerId", readerId.toInt());
     
     if (!query.exec()) {
@@ -334,6 +401,7 @@ QSqlQueryModel* DatabaseManager::getReaders()
     model->setHeaderData(0, Qt::Horizontal, QObject::tr("读者 ID"));
     model->setHeaderData(1, Qt::Horizontal, QObject::tr("姓名"));
     model->setHeaderData(2, Qt::Horizontal, QObject::tr("电话"));
+    model->setHeaderData(3, Qt::Horizontal, QObject::tr("性别"));
     
     return model;
 }
@@ -356,6 +424,7 @@ bool DatabaseManager::createBorrowTable()
         qDebug() << "Failed to create borrows table:" << query.lastError().text();
         return false;
     }
+    
     return true;
 }
 
@@ -494,9 +563,30 @@ QSqlQueryModel* DatabaseManager::getActiveBorrows()
     model->setHeaderData(3, Qt::Horizontal, QObject::tr("Borrow Date"));
     model->setHeaderData(4, Qt::Horizontal, QObject::tr("Due Date"));
     model->setHeaderData(5, Qt::Horizontal, QObject::tr("Return Date"));
+    model->setHeaderData(6, Qt::Horizontal, QObject::tr("Reminder Status"));
     
     return model;
 }
+
+QSqlQueryModel* DatabaseManager::getOverdueBorrows()
+{
+    QSqlQueryModel* model = new QSqlQueryModel();
+    QString currentDate = QDate::currentDate().toString("yyyy-MM-dd");
+    model->setQuery(QString("SELECT * FROM borrows WHERE return_date IS NULL AND due_date < '%1'").arg(currentDate));
+    
+    // Set header labels
+    model->setHeaderData(0, Qt::Horizontal, QObject::tr("Borrow ID"));
+    model->setHeaderData(1, Qt::Horizontal, QObject::tr("Book ID"));
+    model->setHeaderData(2, Qt::Horizontal, QObject::tr("Reader ID"));
+    model->setHeaderData(3, Qt::Horizontal, QObject::tr("Borrow Date"));
+    model->setHeaderData(4, Qt::Horizontal, QObject::tr("Due Date"));
+    model->setHeaderData(5, Qt::Horizontal, QObject::tr("Return Date"));
+    model->setHeaderData(6, Qt::Horizontal, QObject::tr("Reminder Status"));
+    
+    return model;
+}
+
+
 
 bool DatabaseManager::exportToCSV(const QString& tableName, const QString& filePath)
 {
@@ -598,7 +688,12 @@ bool DatabaseManager::importFromCSV(const QString& tableName, const QString& fil
     return true;
 }
 
-QSqlDatabase DatabaseManager::getDatabase() const
+QSqlDatabase& DatabaseManager::getDatabase()
+{
+    return m_database;
+}
+
+const QSqlDatabase& DatabaseManager::getDatabase() const
 {
     return m_database;
 }
