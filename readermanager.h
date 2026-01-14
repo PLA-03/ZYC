@@ -13,8 +13,8 @@ public:
     explicit ReaderManager(QObject* parent = nullptr);
     ~ReaderManager();
     
-    bool addReader(const QString& readerId, const QString& name, const QString& phone);
-    bool updateReader(const QString& readerId, const QString& name, const QString& phone);
+    bool addReader(const QString& readerId, const QString& name, const QString& phone, const QString& gender = "未知");
+    bool updateReader(const QString& readerId, const QString& name, const QString& phone, const QString& gender = "未知");
     bool deleteReader(const QString& readerId);
     QSqlQueryModel* getReaders();
     
