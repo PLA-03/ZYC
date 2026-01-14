@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "loginwindow.h"
 #include "databasemanager.h"
 
 #include <QApplication>
@@ -15,6 +16,15 @@ int main(int argc, char *argv[])
         return -1;
     }
     
+    // Show login window first
+    LoginWindow loginWindow;
+    if (loginWindow.exec() != QDialog::Accepted || !loginWindow.isLoggedIn()) {
+        // Login failed or canceled
+        DatabaseManager::instance().disconnect();
+        return 0;
+    }
+    
+    // Login successful, show main window
     MainWindow w;
     w.show();
     
